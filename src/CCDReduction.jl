@@ -3,8 +3,6 @@ module CCDReduction
 using Statistics
 using LazyStack
 using FITSIO
-using DataFrames: DataFrame
-using ResumableFunctions
 
 export subtract_bias,
        subtract_bias!,
@@ -19,17 +17,27 @@ export subtract_bias,
        combine,
        subtract_dark,
        subtract_dark!,
+       gain_correct,
+       gain_correct!,
+       noise_model,
+       cosmicray_lacosmic,
        fitscollection,
        arrays,
        filenames,
        ccds,
        CCDData,
        data,
-       hdr
+       hdr,
+       ImageCollection,
+       Pipeline,
+       ChunkedPipeline,
+       tiled_step,
+       process
 
 include("ccddata.jl")
 include("methods.jl")
 include("fits.jl")
 include("collection.jl")
+include("pipeline.jl")
 
 end

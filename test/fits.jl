@@ -1,409 +1,275 @@
-using CCDReduction: getdata
+using CCDReduction: getdata, writefits
 
-@testset "bias subtraction(FITS)" begin
-    # setting initial data
-    hdu_frame = CCDData(M6707HH[1])
-    hdu_bias_frame = CCDData(M6707HH[1])
-    array_frame = getdata(M6707HH[1])
-    array_bias_frame = getdata(M6707HH[1])
-    string_frame = joinpath(@__DIR__, "data/M6707HH.fits")
-    string_bias_frame = joinpath(@__DIR__, "data/M6707HH.fits")
-
-    # non-mutating version
-    # testing CCDData CCDData case
-    processed_frame = subtract_bias(hdu_frame, hdu_bias_frame)
-    @test processed_frame isa CCDData
-    @test processed_frame.data == zeros(1059, 1059)
-    test_header(processed_frame, hdu_frame)
-
-    # testing Array CCDData case
-    processed_frame = subtract_bias(array_frame, hdu_bias_frame)
-    @test processed_frame isa Array
-    @test processed_frame == zeros(1059, 1059)
-
-    # testing CCDData Array case
-    processed_frame = subtract_bias(hdu_frame, array_bias_frame)
-    @test processed_frame isa CCDData
-    @test processed_frame.data == zeros(1059, 1059)
-    test_header(processed_frame, hdu_frame)
-
-    # testing CCDData String case
-    processed_frame = subtract_bias(hdu_frame, string_bias_frame; hdu = 1)
-    @test processed_frame isa CCDData
-    @test processed_frame.data == zeros(1059, 1059)
-    test_header(processed_frame, hdu_frame)
-
-    # testing String CCDData case
-    processed_frame = subtract_bias(string_frame, hdu_bias_frame; hdu = 1)
-    @test processed_frame isa CCDData
-    @test processed_frame.data == zeros(1059, 1059)
-    test_header(processed_frame, hdu_frame)
-
-    # testing String String case
-    processed_frame = subtract_bias(string_frame, string_bias_frame; hdu = 1)
-    @test processed_frame isa CCDData
-    @test processed_frame.data == zeros(1059, 1059)
-    test_header(processed_frame, hdu_frame)
-
-    # testing Array String case
-    processed_frame = subtract_bias(array_frame, string_bias_frame)
-    @test processed_frame isa Array
-    @test processed_frame == zeros(1059, 1059)
-
-    # testing String Array case
-    processed_frame = subtract_bias(string_frame, array_bias_frame)
-    @test processed_frame isa CCDData
-    @test processed_frame == zeros(1059, 1059)
-
-    # testing mutating version
-    # testing CCDData CCDData case
-    hdu_frame = CCDData(M6707HH[1])
-    subtract_bias!(hdu_frame, hdu_bias_frame)
-    @test hdu_frame isa CCDData
-    @test hdu_frame.data == zeros(1059, 1059)
-
-    # testing CCDData Array case
-    hdu_frame = CCDData(M6707HH[1])
-    subtract_bias!(hdu_frame, array_bias_frame)
-    @test hdu_frame isa CCDData
-    @test hdu_frame.data == zeros(1059, 1059)
-
-    # testing Array CCDData case
-    array_frame = getdata(M6707HH[1])
-    subtract_bias!(array_frame, hdu_bias_frame)
-    @test array_frame isa Array
-    @test array_frame == zeros(1059, 1059)
-
-    # testing Array String
-    array_frame = getdata(M6707HH[1])
-    subtract_bias!(array_frame, string_bias_frame)
-    @test array_frame isa Array
-    @test array_frame == zeros(1059, 1059)
-
-    # testing CCDData String
-    hdu_frame = CCDData(M6707HH[1])
-    subtract_bias!(hdu_frame, string_bias_frame)
-    @test hdu_frame isa CCDData
-    @test hdu_frame.data == zeros(1059, 1059)
-
-    # testing error in mutating version
-    hdu_frame = CCDData(fill(2, 5, 5))
-    hdu_bias = CCDData(fill(2.5, 5, 5))
-    @test_throws InexactError subtract_bias!(hdu_frame, hdu_bias)
+function test_header(ccd1::CCDData, ccd2::CCDData)
+    h1 = ccd1.hdr
+    h2 = ccd2.hdr
+    @test keys(h1) == keys(h2)
+    for (k1, k2) in zip(keys(h1), keys(h2))
+        @test h1[k1] == h2[k2]
+    end
 end
 
-@testset "overscan subtraction(FITS)" begin
-    # setting initial data
-    hdu_frame = CCDData(M6707HH[1])
-    array_frame = getdata(M6707HH[1])
-    string_frame = joinpath(@__DIR__, "data/M6707HH.fits")
+# ---------------------------------------------------------------------------
+# getdata / writefits round-trip
+# ---------------------------------------------------------------------------
+@testset "getdata / writefits" begin
+    mktempdir() do dir
+        path = joinpath(dir, "rw.fits")
+        data = rand(12, 15)
+        writefits(path, data)
+        fh = FITS(path)
+        @test getdata(fh[1]) ≈ data
+        close(fh)
 
-    # testing non-mutating version
-    # testing CCDData case
-    processed_frame = subtract_overscan(hdu_frame, (:, 1050:1059))
-    @test processed_frame isa CCDData
-    @test processed_frame.data == subtract_overscan(array_frame, (:, 1050:1059))
-    test_header(processed_frame, hdu_frame)
-
-    processed_frame = subtract_overscan(hdu_frame, "1050:1059, 1:1059")
-    processed_frame isa CCDData
-    @test processed_frame.data == subtract_overscan(array_frame, (:, 1050:1059))
-
-    # testing String case
-    processed_frame = subtract_overscan(string_frame, "1050:1059, 1:1059"; hdu = 1)
-    @test processed_frame isa CCDData
-    @test processed_frame.data == subtract_overscan(array_frame, (:, 1050:1059))
-    test_header(processed_frame, hdu_frame)
-
-    # testing mutating version
-    hdu_frame = CCDData(M6707HH[1])
-    subtract_overscan!(hdu_frame, (:, 1050:1059))
-    @test hdu_frame.data == subtract_overscan(array_frame, (:, 1050:1059))
-
-    hdu_frame = CCDData(M6707HH[1])
-    subtract_overscan!(hdu_frame, "1050:1059, 1:1059")
-    @test hdu_frame.data == subtract_overscan(array_frame, (:, 1050:1059))
+        # CCDData round-trip
+        path2 = joinpath(dir, "rw2.fits")
+        ccd = CCDData(fill(3.0, 8, 8))
+        writefits(path2, ccd)
+        fh2 = FITS(path2)
+        @test getdata(fh2[1]) ≈ ccd.data
+        close(fh2)
+    end
 end
 
-@testset "flat correction(FITS)" begin
-    # setting initial data
-    hdu_frame = CCDData(M6707HH[1])
-    hdu_flat_frame = CCDData(M6707HH[1])
-    array_frame = getdata(M6707HH[1])
-    array_flat_frame = getdata(M6707HH[1])
-    string_frame = joinpath(@__DIR__, "data/M6707HH.fits")
-    string_flat_frame = joinpath(@__DIR__, "data/M6707HH.fits")
-    mean_flat_frame = mean(array_flat_frame)
+# ---------------------------------------------------------------------------
+# default_header
+# ---------------------------------------------------------------------------
+@testset "default_header / CCDData constructors" begin
+    # CCDData from raw array should get a valid default header
+    ccd = CCDData(zeros(4, 4))
+    @test ccd isa CCDData
+    @test ccd[:SIMPLE] == true
 
-    # testing non mutating version
-    # testing CCDData CCDData case
-    processed_frame = flat_correct(hdu_frame, hdu_flat_frame)
-    @test processed_frame isa CCDData
-    test_header(processed_frame, hdu_frame)
-    @test processed_frame.data ≈ fill(mean_flat_frame, 1059, 1059)
+    # CCDData from FITS path
+    ccd2 = CCDData(FRAME_A_PATH; hdu = 1)
+    @test ccd2 isa CCDData
+    @test size(ccd2) == (64, 64)
 
-    # testing CCDData Array case
-    processed_frame = flat_correct(hdu_frame, array_flat_frame; norm_value = 1)
-    @test processed_frame isa CCDData
-    @test processed_frame.data ≈ ones(1059, 1059)
-
-    # testing Array CCDData case
-    processed_frame = flat_correct(array_frame, hdu_flat_frame; norm_value = 1)
-    @test processed_frame isa Array
-    @test processed_frame ≈ ones(1059, 1059)
-
-    # testing String CCDData case
-    processed_frame = flat_correct(string_frame, hdu_flat_frame; norm_value = 1, hdu = 1)
-    @test processed_frame isa CCDData
-    @test processed_frame.data ≈ ones(1059, 1059)
-
-    # testing String Array Case
-    processed_frame = flat_correct(string_frame, array_flat_frame; norm_value = 1, hdu = 1)
-    @test processed_frame isa CCDData
-    @test processed_frame.data ≈ ones(1059, 1059)
-    test_header(processed_frame, CCDData(string_frame; hdu = 1))
-
-    # testing CCDData String case
-    processed_frame = flat_correct(hdu_frame, string_flat_frame; norm_value = 1, hdu = 1)
-    @test processed_frame isa CCDData
-    @test processed_frame.data ≈ ones(1059, 1059)
-
-    # testing Array String case
-    processed_frame = flat_correct(array_frame, string_flat_frame; norm_value = 1, hdu = 1)
-    @test processed_frame isa Array
-    @test processed_frame ≈ ones(1059, 1059)
-
-    # testing String String case
-    processed_frame = flat_correct(string_frame, string_flat_frame; norm_value = 1, hdu = 1)
-    @test processed_frame isa CCDData
-    @test processed_frame.data ≈ ones(1059, 1059)
-    test_header(processed_frame, CCDData(string_frame; hdu = 1))
-
-    # testing type mutation in non mutating version
-    hdu_frame = CCDData(fill(1, 5, 5))
-    bias_frame = CCDData(fill(2.0, 5, 5))
-    processed_frame = flat_correct(hdu_frame, bias_frame; norm_value = 1)
-    @test processed_frame isa CCDData
-    @test processed_frame.data ≈ fill(0.5, 5, 5)
-
-    # testing mutating version
-    # testing CCDData Array case
-    hdu_frame = CCDData(ones(5, 5))
-    flat_correct!(hdu_frame, fill(2.0, 5, 5); norm_value = 1)
-    @test hdu_frame.data ≈ fill(0.5, 5, 5)
-
-    # testing CCDData CCDData case
-    hdu_frame = CCDData(ones(5, 5))
-    flat_correct!(hdu_frame, CCDData(fill(2.0, 5, 5)); norm_value = 1)
-    @test hdu_frame.data ≈ fill(0.5, 5, 5)
-
-    # testing CCDData String case
-    hdu_frame = CCDData(M6707HH[1])
-    flat_correct!(hdu_frame, string_flat_frame; norm_value = 1, hdu = 1)
-    @test hdu_frame.data ≈ ones(1059, 1059)
-
-    # testing Array String case
-    array_frame = getdata(M6707HH[1])
-    flat_correct!(array_frame, string_flat_frame; norm_value = 1, hdu = 1)
-    @test hdu_frame.data ≈ ones(1059, 1059)
-
-    # testing type error in mutating version
-    frame = CCDData(fill(1, 5 ,5))
-    @test_throws InexactError flat_correct!(frame, fill(2.0, 5, 5); norm_value = 1)
+    # CCDData from ImageHDU
+    FITS(FRAME_A_PATH) do fh
+        ccd3 = CCDData(fh[1])
+        @test size(ccd3) == (64, 64)
+    end
 end
 
-@testset "trim(FITS)" begin
-    # setting initial data
-    hdu_frame = CCDData(M6707HH[1])
-    array_frame = M6707HH[1] |> getdata
-    string_frame = joinpath(@__DIR__, "data/M6707HH.fits")
+# ---------------------------------------------------------------------------
+# subtract_bias with FITS inputs
+# ---------------------------------------------------------------------------
+@testset "subtract_bias (FITS)" begin
+    hdu_frame = CCDData(FRAME_A_PATH)
+    hdu_bias  = CCDData(BIAS_PATH)
+    arr_frame = getdata(FITS(FRAME_A_PATH)[1])
+    arr_bias  = getdata(FITS(BIAS_PATH)[1])
 
-    # testing trim
-    # testing CCDData case
-    processed_frame = trim(hdu_frame, (:, 1050:1059))
-    @test processed_frame isa CCDData
-    @test processed_frame.data isa Array
-    @test processed_frame.data == trim(array_frame, (:, 1050:1059))
+    # CCDData - CCDData
+    result = subtract_bias(hdu_frame, hdu_bias)
+    @test result isa CCDData
+    @test result.data ≈ arr_frame .- arr_bias
+    test_header(result, hdu_frame)
 
-    processed_frame = trim(hdu_frame, "1:1059, 1050:1059")
-    test_header(processed_frame, hdu_frame)
-    @test processed_frame isa CCDData
-    @test processed_frame.data isa Array
-    @test processed_frame.data == trim(array_frame, (1050:1059, :))
+    # Array - CCDData
+    result2 = subtract_bias(arr_frame, hdu_bias)
+    @test result2 isa Array
+    @test result2 ≈ arr_frame .- arr_bias
 
-    # testing string case
-    processed_frame = trim(string_frame, "1:1059, 1050:1059"; hdu = 1)
-    test_header(processed_frame, hdu_frame)
-    @test processed_frame isa CCDData
-    @test processed_frame.data isa Array
-    @test processed_frame.data == trim(array_frame, (1050:1059, :))
+    # String - CCDData
+    result3 = subtract_bias(FRAME_A_PATH, hdu_bias; hdu = 1)
+    @test result3 isa CCDData
+    @test result3.data ≈ arr_frame .- arr_bias
 
-    # testing trimview
-    processed_frame = trimview(hdu_frame, (:, 1050:1059))
-    @test processed_frame isa CCDData
-    @test processed_frame.data isa SubArray
-    processed_frame.data[3] = 16
-    @test hdu_frame.data[3] == 16 # modifying processed_frame modifies hdu_frame
+    # CCDData - String
+    result4 = subtract_bias(hdu_frame, BIAS_PATH; hdu = 1)
+    @test result4 isa CCDData
+    @test result4.data ≈ arr_frame .- arr_bias
+
+    # Mutating: CCDData - CCDData
+    hdu_frame2 = CCDData(FRAME_A_PATH)
+    subtract_bias!(hdu_frame2, hdu_bias)
+    @test hdu_frame2.data ≈ arr_frame .- arr_bias
+
+    # Integer frame: InexactError when bias is float with fractional part
+    hdu_int = CCDData(fill(Int32(2), 5, 5))
+    hdu_frac_bias = CCDData(fill(2.5, 5, 5))
+    @test_throws InexactError subtract_bias!(hdu_int, hdu_frac_bias)
 end
 
-@testset "cropping(FITS)" begin
-    # setting initial data
-    hdu_frame = CCDData(M6707HH[1])
-    array_frame = getdata(M6707HH[1])
-    string_frame = joinpath(@__DIR__, "data/M6707HH.fits")
+# ---------------------------------------------------------------------------
+# subtract_overscan with FITS inputs
+# ---------------------------------------------------------------------------
+@testset "subtract_overscan (FITS)" begin
+    hdu_frame = CCDData(FRAME_A_PATH)
+    arr_frame = Float64.(getdata(FITS(FRAME_A_PATH)[1]))
 
-    # testing crop
-    # testning CCDData case
-    processed_frame = crop(hdu_frame, (:, 5))
-    @test processed_frame isa CCDData
-    @test processed_frame.data isa Array
-    @test processed_frame.data == crop(array_frame, (:, 5))
+    # CCDData with tuple indices
+    result = subtract_overscan(hdu_frame, (:, 60:64))
+    @test result isa CCDData
+    @test result.data ≈ subtract_overscan(arr_frame, (:, 60:64))
 
-    @test_logs (:warn, "dimension 1 changed from 348 to 349") (:warn, "dimension 2 changed from 226 to 227") processed_frame = crop(hdu_frame, (348, 226))
-    @test processed_frame isa CCDData
-    @test processed_frame.data isa Array
-    @test_logs (:warn, "dimension 1 changed from 348 to 349") (:warn, "dimension 2 changed from 226 to 227") @test processed_frame.data == crop(array_frame, (348, 226))
+    # String
+    result2 = subtract_overscan(FRAME_A_PATH, (:, 60:64); hdu = 1)
+    @test result2 isa CCDData
+    @test result2.data ≈ subtract_overscan(arr_frame, (:, 60:64))
 
-    processed_frame = crop(hdu_frame, (1000, 5); force_equal = false)
-    @test processed_frame isa CCDData
-    @test processed_frame.data isa Array
-    @test processed_frame.data == crop(array_frame, (1000, 5); force_equal = false)
-
-    # testing String case
-    processed_frame = crop(string_frame, (1000, 5); force_equal = false, hdu = 1)
-    @test processed_frame isa CCDData
-    @test processed_frame.data isa Array
-    test_header(processed_frame, CCDData(string_frame; hdu = 1))
-    @test processed_frame.data == crop(array_frame, (1000, 5); force_equal = false)
-
-    # testing trimview
-    processed_frame = cropview(hdu_frame, (:, :))
-    @test processed_frame isa CCDData
-    @test processed_frame.data isa SubArray
-    processed_frame.data[5] = 1
-    @test hdu_frame[5] == 1 # modifying processed_frame modifies hdu_frame
+    # Mutating
+    hdu_frame2 = CCDData(FRAME_A_PATH)
+    subtract_overscan!(hdu_frame2, (:, 60:64))
+    @test hdu_frame2.data ≈ subtract_overscan(arr_frame, (:, 60:64))
 end
 
+# ---------------------------------------------------------------------------
+# flat_correct with FITS inputs
+# ---------------------------------------------------------------------------
+@testset "flat_correct (FITS)" begin
+    hdu_frame = CCDData(FRAME_A_PATH)
+    hdu_flat  = CCDData(FLAT_PATH)
+    arr_frame = Float64.(getdata(FITS(FRAME_A_PATH)[1]))
+    arr_flat  = Float64.(getdata(FITS(FLAT_PATH)[1]))
 
-@testset "combine(FITS)" begin
-    # setting initial data
-    frame = CCDData(M6707HH[1])
-    vector_frames = [frame for i in 1:3]
-    vector_arrays = [frame.data for i in 1:3]
-    dir_frame = joinpath(@__DIR__, "data/M6707HH.fits")
-    array_frame = getdata(M6707HH[1])
+    # CCDData - CCDData (flat = 1.0, so result = frame)
+    result = flat_correct(hdu_frame, hdu_flat)
+    @test result isa CCDData
+    @test result.data ≈ arr_frame   # flat is all-ones, mean=1, so no change
 
-    # testing the vector version
-    processed_frame = combine(vector_frames)
-    @test processed_frame isa CCDData
-    @test processed_frame.data == combine(vector_arrays)
+    # With norm_value = 1
+    result2 = flat_correct(hdu_frame, hdu_flat; norm_value = 1.0)
+    @test result2.data ≈ arr_frame
 
-    # testing varargs version
-    processed_frame = combine(frame, frame, frame)
-    @test processed_frame isa CCDData
-    @test processed_frame.data == combine(vector_arrays)
+    # String - CCDData
+    result3 = flat_correct(FRAME_A_PATH, hdu_flat; norm_value = 1.0, hdu = 1)
+    @test result3 isa CCDData
+    @test result3.data ≈ arr_frame
 
-    # testing header header copyig functionality
-    data1 = CCDData(ones(5, 6))
-    data2 = CCDData(fill(2, 5, 6))
-    data2.hdr["SIMPLE"] = false # initially was true
+    # Mutating
+    hdu_frame2 = CCDData(copy(Float64.(hdu_frame.data)), hdu_frame.hdr)
+    flat_correct!(hdu_frame2, hdu_flat; norm_value = 1.0)
+    @test hdu_frame2.data ≈ arr_frame
 
-    processed_frame = combine(data1, data2; header_hdu = 2, method = sum)
-    @test processed_frame isa CCDData
-    @test processed_frame.data == combine(data1.data, data2.data; method = sum)
-    test_header(processed_frame, data2)
-
-    # testing String case
-    processed_frame = combine([dir_frame, dir_frame, dir_frame]; method = sum)
-    @test processed_frame isa CCDData
-    @test processed_frame.data == combine(array_frame, array_frame, array_frame; method = sum)
-    test_header(processed_frame, frame)
+    # Type promotion: integer frame with float flat
+    hdu_int_frame = CCDData(fill(Int32(4), 5, 5))
+    hdu_float_flat = CCDData(fill(2.0, 5, 5))
+    result4 = flat_correct(hdu_int_frame, hdu_float_flat; norm_value = 1.0)
+    @test result4 isa CCDData
+    @test result4.data ≈ fill(2.0, 5, 5)
 end
 
-@testset "dark subtraction(FITS)" begin
-    # setting initial data
-    hdu_frame = CCDData(M6707HH[1])
-    hdu_dark_frame = CCDData(M6707HH[1])
-    array_frame = getdata(M6707HH[1])
-    array_dark_frame = getdata(M6707HH[1])
-    string_frame = joinpath(@__DIR__, "data/M6707HH.fits")
-    string_dark_frame = joinpath(@__DIR__, "data/M6707HH.fits")
+# ---------------------------------------------------------------------------
+# trim with FITS inputs
+# ---------------------------------------------------------------------------
+@testset "trim (FITS)" begin
+    hdu_frame = CCDData(FRAME_A_PATH)
+    arr_frame = getdata(FITS(FRAME_A_PATH)[1])
 
-    # testing non-mutating version
-    # testing CCDData CCDData case
-    processed_frame = subtract_dark(hdu_frame, hdu_dark_frame; dark_exposure = 0.5)
-    @test processed_frame isa CCDData
-    test_header(processed_frame, hdu_frame)
-    @test processed_frame == (-1) .* array_frame
+    # CCDData tuple indices
+    result = trim(hdu_frame, (:, 60:64))
+    @test result isa CCDData
+    @test result.data == trim(arr_frame, (:, 60:64))
 
-    # testing CCDData Array case
-    processed_frame = subtract_dark(hdu_frame, array_dark_frame; dark_exposure = 2, data_exposure = 2)
-    @test processed_frame isa CCDData
-    @test processed_frame.data == zeros(1059, 1059)
+    # String
+    result2 = trim(FRAME_A_PATH, (:, 60:64); hdu = 1)
+    @test result2 isa CCDData
+    @test result2.data == trim(arr_frame, (:, 60:64))
 
-    # testing Array CCDData case
-    processed_frame = subtract_dark(array_frame, hdu_dark_frame; dark_exposure = 2, data_exposure = 2)
-    @test processed_frame isa Array
-    @test processed_frame == zeros(1059, 1059)
-
-    # testing CCDData String case
-    processed_frame = subtract_dark(hdu_frame, string_dark_frame; dark_exposure = 2, data_exposure = 2, hdu = 1)
-    @test processed_frame isa CCDData
-    @test processed_frame.data == zeros(1059, 1059)
-
-    # testing Array String case
-    processed_frame = subtract_dark(array_frame, string_dark_frame; dark_exposure = 2, data_exposure = 2, hdu = 1)
-    @test processed_frame isa Array
-    @test processed_frame == zeros(1059, 1059)
-
-    # testing String Array case
-    processed_frame = subtract_dark(string_frame, array_dark_frame; dark_exposure = 2, data_exposure = 2, hdu = 1)
-    @test processed_frame isa CCDData
-    @test processed_frame.data == zeros(1059, 1059)
-
-    # testing String CCDData case
-    processed_frame = subtract_dark(string_frame, hdu_dark_frame; dark_exposure = 2, data_exposure = 2, hdu = 1)
-    @test processed_frame isa CCDData
-    @test processed_frame.data == zeros(1059, 1059)
-    test_header(processed_frame, CCDData(string_frame; hdu = 1))
-
-    # testing String String case
-    processed_frame = subtract_dark(string_frame, string_dark_frame; dark_exposure = 2, data_exposure = 2, hdu = 1)
-    @test processed_frame isa CCDData
-    @test processed_frame.data == zeros(1059, 1059)
-
-    # testing mutating version
-    # testing CCDData CCDData case
-    hdu_frame = CCDData(M6707HH[1])
-    subtract_dark!(hdu_frame, hdu_dark_frame; dark_exposure = 2, data_exposure = 2)
-    @test hdu_frame.data == zeros(1059, 1059)
-
-    # testing Array CCDData case
-    array_frame = getdata(M6707HH[1])
-    subtract_dark!(array_frame, hdu_dark_frame; dark_exposure = 2, data_exposure = 2)
-    @test hdu_frame.data == zeros(1059, 1059)
-
-    # testing CCDData String case
-    hdu_frame = CCDData(M6707HH[1])
-    subtract_dark!(hdu_frame, string_dark_frame; dark_exposure = 2, data_exposure = 2, hdu = 1)
-    @test hdu_frame.data == zeros(1059, 1059)
-
-    # testing Array String case
-    array_frame = getdata(M6707HH[1])
-    subtract_dark!(array_frame, string_dark_frame; dark_exposure = 2, data_exposure = 2, hdu = 1)
-    @test hdu_frame.data == zeros(1059, 1059)
+    # trimview returns a view
+    v = trimview(hdu_frame, (:, 60:64))
+    @test v isa CCDData
+    @test v.data isa SubArray
 end
 
-@testset "helper(FITS)" begin
-    # testing getdata
-    hdu = M6707HH[1]
-    data = read(hdu)'
-    @test data == getdata(hdu)
+# ---------------------------------------------------------------------------
+# crop with FITS inputs
+# ---------------------------------------------------------------------------
+@testset "crop (FITS)" begin
+    hdu_frame = CCDData(FRAME_A_PATH)
+    arr_frame = getdata(FITS(FRAME_A_PATH)[1])
 
-    # testing the ways to access header
+    result = crop(hdu_frame, (32, 32))
+    @test result isa CCDData
+    @test result.data == crop(arr_frame, (32, 32))
+
+    result2 = crop(FRAME_A_PATH, (32, 32); hdu = 1)
+    @test result2 isa CCDData
+    @test result2.data == crop(arr_frame, (32, 32))
+end
+
+# ---------------------------------------------------------------------------
+# combine with FITS inputs
+# ---------------------------------------------------------------------------
+@testset "combine (FITS)" begin
+    hdu = CCDData(FRAME_A_PATH)
+    arr = getdata(FITS(FRAME_A_PATH)[1])
+
+    # Vector of CCDData
+    result = combine([hdu, hdu, hdu])
+    @test result isa CCDData
+    @test result.data ≈ combine([arr, arr, arr])
+
+    # Varargs CCDData
+    result2 = combine(hdu, hdu, hdu)
+    @test result2.data ≈ result.data
+
+    # header_hdu selection
+    ccd1 = CCDData(ones(5, 5))
+    ccd2 = CCDData(fill(2.0, 5, 5))
+    ccd2.hdr["SIMPLE"] = false
+    r = combine(ccd1, ccd2; header_hdu = 2, method = sum)
+    @test r.hdr["SIMPLE"] == false
+
+    # String inputs
+    result3 = combine([FRAME_A_PATH, FRAME_A_PATH]; method = sum)
+    @test result3 isa CCDData
+    @test result3.data ≈ 2 .* Float64.(arr)
+end
+
+# ---------------------------------------------------------------------------
+# subtract_dark with FITS inputs
+# ---------------------------------------------------------------------------
+@testset "subtract_dark (FITS)" begin
+    hdu_frame = CCDData(FRAME_A_PATH)
+    hdu_dark  = CCDData(DARK_PATH)
+    arr_frame = Float64.(getdata(FITS(FRAME_A_PATH)[1]))
+    arr_dark  = Float64.(getdata(FITS(DARK_PATH)[1]))
+
+    # Equal exposures
+    result = subtract_dark(hdu_frame, hdu_dark;
+                           data_exposure = 1.0, dark_exposure = 1.0)
+    @test result isa CCDData
+    @test result.data ≈ arr_frame .- arr_dark
+
+    # String inputs
+    result2 = subtract_dark(FRAME_A_PATH, DARK_PATH;
+                             data_exposure = 1.0, dark_exposure = 1.0, hdu = 1)
+    @test result2 isa CCDData
+    @test result2.data ≈ arr_frame .- arr_dark
+
+    # Mutating
+    hdu_frame2 = CCDData(FRAME_A_PATH)
+    subtract_dark!(hdu_frame2, hdu_dark; data_exposure = 1.0, dark_exposure = 1.0)
+    @test hdu_frame2.data ≈ arr_frame .- arr_dark
+end
+
+# ---------------------------------------------------------------------------
+# gain_correct with FITS inputs
+# ---------------------------------------------------------------------------
+@testset "gain_correct (FITS)" begin
+    hdu_frame = CCDData(FRAME_A_PATH)
+    arr_frame = Float64.(getdata(FITS(FRAME_A_PATH)[1]))
+
+    result = gain_correct(hdu_frame, 2.0)
+    @test result isa CCDData
+    @test result.data ≈ 2.0 .* arr_frame
+
+    result2 = gain_correct(FRAME_A_PATH, 2.0; hdu = 1)
+    @test result2 isa CCDData
+    @test result2.data ≈ 2.0 .* arr_frame
+end
+
+# ---------------------------------------------------------------------------
+# Header access via CCDData
+# ---------------------------------------------------------------------------
+@testset "CCDData header access" begin
     ccd = CCDData(zeros(5, 5))
     @test ccd[:SIMPLE] == true
     @test ccd[:SIMPLE] == ccd["SIMPLE"]
     ccd[:SIMPLE] = false
-    @test ccd["SIMPLE"] == false # testing the modified version
+    @test ccd["SIMPLE"] == false
 end

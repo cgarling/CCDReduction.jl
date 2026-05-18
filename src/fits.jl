@@ -26,7 +26,7 @@ for func in (:flat_correct, :subtract_bias, :subtract_dark)
     @eval begin
         function $func(frame::String, correction::String; hdu = (1, 1), kwargs...)
             hdus = hdu isa Integer ? (hdu, hdu) : hdu
-            return $func(CCDData(frame; hdu = hdus[1]), CCDData(frame; hdu = hdus[2]); kwargs...)
+            return $func(CCDData(frame; hdu = hdus[1]), CCDData(correction; hdu = hdus[2]); kwargs...)
         end
     end
 end
@@ -35,8 +35,7 @@ for func in (:flat_correct!, :subtract_bias!, :subtract_dark!)
     @eval $func(frame::AbstractArray, correction::String; hdu = 1, kwargs...) = $func(frame, CCDData(correction; hdu = hdu); kwargs...)
 end
 
-
-for func in (:crop, :trim, :subtract_overscan)
+for func in (:crop, :trim, :subtract_overscan, :gain_correct)
     @eval $func(frame::AbstractString, args...; hdu = 1, kwargs...) = $func(CCDData(frame; hdu = hdu), args...; kwargs...)
 end
 
@@ -54,3 +53,27 @@ function combine(frames::Vararg{AbstractString, N}; hdu = ntuple(one, N), kwargs
     end
     return combine(ccddata_frames...; kwargs...)
 end
+
+#---------------------------------------------------------------------------------------
+"""
+    CCDReduction.writefits(file_path, data; header = nothing)
+    CCDReduction.writefits(file_path, ccd::CCDData)
+
+Write `data`/`ccd` in FITS format at `file_path`.
+
+`FITSIO` takes over memory write in by `cfitsio`, which writes in row-major
+form, whereas when Julia gives that memory, it is assumed as column major.
+Therefore all data written by
+[`FITSIO.write`](https://juliaastro.org/FITSIO.jl/stable/api/#Base.write-Tuple{FITS,%20Dict{String}})
+is transposed. This function allows the user to write the data in a consistent
+way to a FITS file by transposing before writing.
+"""
+function writefits(file_path, data; header = nothing)
+    d = ndims(data)
+    transposed_data = permutedims(data, d:-1:1)
+    FITS(file_path, "w") do fh
+        write(fh, transposed_data; header = header)
+    end
+end
+
+writefits(file_path, ccd::CCDData) = writefits(file_path, ccd.data; header = ccd.hdr)
