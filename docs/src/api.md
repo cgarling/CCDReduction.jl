@@ -11,9 +11,12 @@ Complete reference for all public functions and types in CCDReduction.jl.
 
 ```@docs
 CCDData
-AbstractCCDData
+CCDReduction.AbstractCCDData
+CCDReduction.default_header
+CCDReduction.CollectionRow
 ImageCollection
-CollectionRow
+CCDReduction.getdata
+CCDReduction.writefits
 ```
 
 ## Calibration Methods
@@ -64,4 +67,18 @@ fitscollection
 arrays
 filenames
 ccds
+Base.iterate(::ImageCollection)
+Base.size(::ImageCollection)
+Base.getindex(::ImageCollection, ::Integer)
+Base.getindex(::ImageCollection, ::AbstractVector{Bool})
+```
+
+## Internal Utilities
+
+```@docs
+CCDReduction._laplacian
+CCDReduction._median3x3
+CCDReduction._median5x5
+CCDReduction._dilate
+CCDReduction.find_ccd
 ```

@@ -163,6 +163,11 @@ end
 # tiled_step helper
 #---------------------------------------------------------------------------------------
 
+struct TiledStep{F, C <: Tuple}
+    f    :: F
+    cals :: C
+end
+
 """
     tiled_step(f, calibrations...)
 
@@ -188,11 +193,6 @@ pipeline = ChunkedPipeline(
 result = process(pipeline, science_frame)
 ```
 """
-struct TiledStep{F, C <: Tuple}
-    f    :: F
-    cals :: C
-end
-
 tiled_step(f, cals...) = TiledStep(f, cals)
 
 # Called by ChunkedPipeline with explicit (ri, rj) tile indices

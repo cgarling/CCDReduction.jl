@@ -33,9 +33,9 @@ end
 
 # Master calibration frames (already reduced — normally these come from
 # dedicated calibration exposures combined with `combine`)
-master_bias = make_raw(zeros(NROWS, NCOLS)) |> x -> x[:, 1:NCOLS]
-master_dark = make_raw(fill(5.0, NROWS, NCOLS); bias_level = 500.0) |> x -> x[:, 1:NCOLS]
-master_flat = make_raw(fill(1000.0, NROWS, NCOLS); bias_level = 500.0) |> x -> x[:, 1:NCOLS]
+master_bias = make_raw(zeros(NROWS, NCOLS))[:, 1:NCOLS]
+master_dark = make_raw(fill(5.0, NROWS, NCOLS), 500.0)[:, 1:NCOLS]
+master_flat = make_raw(fill(1000.0, NROWS, NCOLS), 500.0)[:, 1:NCOLS]
 
 # Three synthetic science frames with a faint source at (50,50) of signal 100
 science_signal = fill(200.0, NROWS, NCOLS)

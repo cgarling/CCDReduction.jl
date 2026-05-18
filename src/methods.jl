@@ -502,8 +502,8 @@ julia> frame = fill(100.0, 2, 2);
 
 julia> noise_model(frame; read_noise = 10.0, gain = 2.0)
 2×2 Matrix{Float64}:
- 7.90569  7.90569
- 7.90569  7.90569
+ 8.66025  8.66025
+ 8.66025  8.66025
 
 ```
 """
