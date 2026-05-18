@@ -18,12 +18,25 @@ Base.getindex(ccd::AbstractCCDData, inds::Symbol...) = getindex(ccd, string.(ind
 Base.setindex!(ccd::AbstractCCDData, v, inds::Symbol...) = setindex!(ccd, v, string.(inds)...) # modifying header using Symbol
 Base.promote_rule(::Type{AbstractCCDData{T}}, ::Type{AbstractCCDData{V}}) where {T,V} = AbstractCCDData{promote_type{T,V}}
 
+"""
+    CCDReduction.default_header(data)
+
+Create a minimal, valid `FITSIO.FITSHeader` for the given data array.
+
+The header contains only the mandatory `SIMPLE = T` keyword. This is used as
+the fallback when constructing [`CCDData`](@ref) without an explicit header.
+"""
+function default_header(::AbstractArray)
+    return FITSHeader(["SIMPLE"], [true], ["conforms to FITS standard"])
+end
+
 # custom data type to hold ImageHDU
 """
     CCDData <: AbstractCCDData
     CCDData(data::AbstractMatrix, [hdr::FITSHeader])
 
-Struct to store `ImageHDU`, derived from [`AbstractCCDData`](@ref).
+Struct to store CCD image data together with a FITS header, derived from
+[`AbstractCCDData`](@ref).
 
 `CCDData` acts like a matrix with a header associated.
 
